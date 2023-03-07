@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/capability.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
@@ -25,7 +26,6 @@
 #include <linux/capability.h>
 #include <linux/limits.h>
 #include <getopt.h>
-#include <unistd.h>
 
 struct child_config
 {
@@ -64,6 +64,10 @@ void cleanup(int sockets[]);
 /*
 <<choose-hostname>>
 */
+int choose_hostname(char *buff, size_t len)
+{
+
+}
 
 int main(int argc, char **argv)
 {
@@ -101,6 +105,33 @@ int main(int argc, char **argv)
    /*
    <<check-linux-version>>
    */
+  fprintf(stderr, "=> validating Linux version...");
+  struct utsname host = {0};
+  if (uname(&host)) {
+      fprintf(stderr, "failed:%m\m");
+      cleanup(sockets);
+  }
+  else {
+      int major = -1;
+      int minor = -1;
+
+      if (sscanf(host.release, "%u.%u.", &major, &minor) != 2) {
+         fprintf(stderr, "weird release format: %s\n", host.release);
+         cleanup(sockets);
+      }
+
+      if (major != 4 || (minor != 7 && minor != 8)) {
+         fprintf(stderr, "expected 4.7.x or 4.8.x %s\n", host.release);
+         cleanup(sockets);
+      }
+
+      if (strcmp("x86_64", host.release)) {
+         fprintf(stderr, "expected x86_64: %s\n", host.machine);
+         cleanup(sockets);
+      }
+
+      fprintf(stderr, "%s on %s.\n", host.release, host.machine);
+  }
 
    char hostname[255] = {0};
 
@@ -143,6 +174,10 @@ void cleanup(int sockets[])
 {
    if (sockets[0])
    {
-      fclose(sockets[0]);
+      close(sockets[0]);
+   }
+   if (sockets[1])
+   {
+      close(sockets[1]);
    }
 }
